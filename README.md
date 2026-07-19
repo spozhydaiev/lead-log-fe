@@ -11,17 +11,17 @@ Production-ready Next.js frontend for Lead Log, a private work-memory app for no
 
 ## API contract
 
-`docs/openapi.yaml` is the frontend source of truth. The backend uses an HttpOnly `lead_log_session` cookie; all API requests use `credentials: "include"`. Unsafe methods rely on the browser-sent `Origin` matching backend `FRONTEND_ORIGINS`; the frontend does not forge Origin headers or use Bearer tokens.
+`docs/openapi.yaml` is the frontend source of truth for backend endpoints. Browser code calls the same-origin Next.js BFF proxy at `/api/backend`, and the proxy forwards requests server-side to the configured backend with `credentials: "include"` semantics for the HttpOnly `lead_log_session` cookie. Unsafe methods are accepted by the proxy only from the frontend origin, then forwarded with that allowed Origin; the frontend does not use Bearer tokens.
 
 ## Environment
 
 Copy `.env.example` to `.env.local`:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+BACKEND_API_BASE_URL=http://localhost:8080
 ```
 
-This is a public backend origin only. Do not put secrets or tokens in `NEXT_PUBLIC_*` variables.
+This server-only backend origin is read by Next.js route handlers. Do not expose backend URLs or secrets through `NEXT_PUBLIC_*` variables.
 
 ## Commands
 
@@ -37,21 +37,23 @@ npm start
 
 ## Railway deployment
 
-Use Node.js 20+. Recommended topology:
+Use Node.js 20+. Current Railway topology:
 
-- `app.<domain>` → this frontend Railway service
-- `api.<domain>` → Lead Log backend Railway service
+- `https://lead-log-fe-production.up.railway.app` → this frontend Railway service
+- `https://lead-log-production.up.railway.app` → Lead Log backend Railway service
+
+Production browser requests use relative `/api/backend/...` URLs. Browser code no longer needs `NEXT_PUBLIC_API_BASE_URL` for production API requests.
 
 Frontend service:
 
 - Build command: `npm ci && npm run build`
 - Start command: `npm start`
-- Environment: `NEXT_PUBLIC_API_BASE_URL=https://api.<domain>`
+- Environment: `BACKEND_API_BASE_URL=https://lead-log-production.up.railway.app`
 
 Backend service must allow the exact frontend origin, for example:
 
 ```bash
-FRONTEND_ORIGINS=https://app.<domain>
+FRONTEND_ORIGINS=https://lead-log-fe-production.up.railway.app
 AUTH_SESSION_SECURE=true
 ```
 
