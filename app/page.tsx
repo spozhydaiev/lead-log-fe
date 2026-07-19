@@ -1,0 +1,2 @@
+'use client';import { useEffect } from 'react';import { useRouter } from 'next/navigation';import { useSession } from '@/features/auth/session-provider';
+export default function Home(){const{status}=useSession();const r=useRouter();useEffect(()=>{if(status==='authenticated')r.replace('/today');if(status==='unauthenticated')r.replace('/login')},[status,r]);return <main className="main"><p className="muted">Opening Lead Log…</p></main>}
