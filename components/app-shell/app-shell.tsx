@@ -1,3 +1,3 @@
 'use client';import Link from 'next/link';import { usePathname } from 'next/navigation';
-const items=[['/today','Today'],['/notes','Notes'],['','Actions'],['/people','People'],['/tickets','Tickets'],['/settings','Settings']];
+const items=[['/today','Today'],['/notes','Notes'],['/actions','Actions'],['/people','People'],['/tickets','Tickets'],['/settings','Settings']];
 export function AppShell({children}:{children:React.ReactNode}){const p=usePathname();return <div className="app"><aside className="sidebar"><h2>Lead Log</h2><nav className="nav" aria-label="Primary">{items.map(([href,label])=>href?<Link key={label} className={p===href||p.startsWith(`${href}/`)?'active':''} href={href}>{label}</Link>:<span key={label} aria-disabled>{label} · later</span>)}</nav></aside><main className="main">{children}</main></div>}
