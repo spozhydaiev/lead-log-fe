@@ -1,0 +1,25 @@
+import { NextRequest } from 'next/server';
+
+const HOP_BY_HOP_HEADERS=new Set(['connection','keep-alive','transfer-encoding','upgrade','proxy-authenticate','proxy-authorization','te','trailer']);
+const REQUEST_TIMEOUT_MS=15000;
+const UNSAFE_METHODS=new Set(['POST','PUT','PATCH','DELETE']);
+
+type RouteContext={params:Promise<{path?:string[]}>|{path?:string[]}};
+
+function getBackendBaseUrl(){const value=process.env.BACKEND_API_BASE_URL;if(!value)throw new Error('BACKEND_API_BASE_URL is required');return new URL(value.replace(/\/$/,''));}
+function isSafeHeader(name:string){return !HOP_BY_HOP_HEADERS.has(name.toLowerCase());}
+function frontendOrigin(req:NextRequest){return new URL(req.url).origin;}
+function validateOrigin(req:NextRequest){if(!UNSAFE_METHODS.has(req.method))return null;const origin=req.headers.get('origin');if(origin!==frontendOrigin(req))return Response.json({error:{code:'forbidden',message:'Invalid request origin.',request_id:'frontend_proxy'}},{status:403});return null;}
+function buildTargetUrl(req:NextRequest,path:string[]){if(path.some(segment=>/^https?:$/i.test(segment)||segment.includes('://')))return null;const backend=getBackendBaseUrl();const target=new URL(backend.toString());target.pathname=`/${path.map(encodeURIComponent).join('/')}`;target.search=new URL(req.url).search;return target;}
+function forwardedRequestHeaders(req:NextRequest){const headers=new Headers();for(const name of ['content-type','accept','cookie','x-request-id','x-correlation-id','traceparent','tracestate']){const value=req.headers.get(name);if(value&&isSafeHeader(name))headers.set(name,value)}if(UNSAFE_METHODS.has(req.method)){headers.set('origin',frontendOrigin(req))}return headers;}
+function responseCookies(headers:Headers){const h=headers as Headers&{getSetCookie?:()=>string[]};const cookies=h.getSetCookie?.();if(cookies?.length)return cookies;const single=headers.get('set-cookie');return single?[single]:[];}
+function rewriteSetCookie(cookie:string){const parts=cookie.split(';').map(part=>part.trim()).filter(Boolean);const first=parts.shift();if(!first)return cookie;let hasPath=false;let hasSameSite=false;const attrs:string[]=[];for(const part of parts){const [rawName]=part.split('=',1);const name=rawName.toLowerCase();if(name==='domain')continue;if(name==='path')hasPath=true;if(name==='samesite'){hasSameSite=true;attrs.push('SameSite=Lax');continue}attrs.push(part)}if(!hasPath)attrs.push('Path=/');if(!hasSameSite)attrs.push('SameSite=Lax');return [first,...attrs].join('; ');}
+function forwardedResponseHeaders(backendHeaders:Headers){const headers=new Headers();for(const name of ['content-type','cache-control']){const value=backendHeaders.get(name);if(value)headers.set(name,value)}for(const cookie of responseCookies(backendHeaders)){headers.append('set-cookie',rewriteSetCookie(cookie))}return headers;}
+function timeoutSignal(input:AbortSignal){const timeout=AbortSignal.timeout(REQUEST_TIMEOUT_MS);return AbortSignal.any([input,timeout]);}
+
+export async function proxyBackend(req:NextRequest,context:RouteContext){const params=await context.params;const path=params.path??[];const originError=validateOrigin(req);if(originError)return originError;const target=buildTargetUrl(req,path);if(!target)return Response.json({error:{code:'not_found',message:'Unknown backend path.',request_id:'frontend_proxy'}},{status:404});
+ const init:RequestInit={method:req.method,headers:forwardedRequestHeaders(req),redirect:'manual',signal:timeoutSignal(req.signal)};if(req.method!=='GET'&&req.method!=='HEAD')init.body=await req.arrayBuffer();
+ let backendRes:Response;try{backendRes=await fetch(target,init)}catch(e){const name=e instanceof Error?e.name:'';const status=name==='TimeoutError'||name==='AbortError'?504:503;return Response.json({error:{code:'service_unavailable',message:'Lead Log backend is temporarily unavailable.',request_id:'frontend_proxy'}},{status,headers:{'cache-control':'no-store'}})}
+ return new Response(backendRes.body,{status:backendRes.status,headers:forwardedResponseHeaders(backendRes.headers)});
+}
+export const GET=proxyBackend;export const POST=proxyBackend;export const PUT=proxyBackend;export const PATCH=proxyBackend;export const DELETE=proxyBackend;
