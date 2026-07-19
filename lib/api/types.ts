@@ -1,5 +1,6 @@
 export type ProcessingStatus='pending'|'processing'|'processed'|'failed';
 export type ActionStatus='open'|'done';
+export type ActionListStatus=ActionStatus|'all';
 export type TelegramStatus={connected:boolean;linked_at:string|null};
 export type SessionUser={display_name?:string;email:string;response_language:string;timezone:string};
 export type SessionData={user:SessionUser;telegram:TelegramStatus};
@@ -8,6 +9,8 @@ export type LoginRequest={email:string;password:string};
 export type Pagination={limit:number;next_cursor:string|null};
 export type Person={display_name:string};
 export type Action={id:string;title:string;status:ActionStatus;linked_person:Person|null;due_at:string|null;created_at:string;completed_at:string|null;source_note_id:string|null};
+export type ActionList={data:Action[];pagination?:Pagination};
+export type ActionListParams={limit?:number;cursor?:string;status?:ActionListStatus};
 export type ExtractedCounts={actions:number;people:number;decisions:number;entities:number};
 export type PersonPreview={id:string;display_name:string};
 export type NotePreviewMetadata={people:PersonPreview[];tickets:string[];tags:string[]};
