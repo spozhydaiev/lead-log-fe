@@ -4,7 +4,7 @@ type Json=Record<string,unknown>|unknown[]|string|number|boolean|null;
 type Options={method?:'GET'|'POST'|'PATCH'|'DELETE';body?:Json;headers?:Record<string,string>;signal?:AbortSignal;unwrapData?:boolean};
 export class ApiRequestError extends Error{safe:SafeApiError;constructor(safe:SafeApiError){super(safe.message);this.safe=safe;}}
 const safeMessage=(kind:SafeApiError['kind'])=>kind==='network_error'?'Lead Log could not reach the server. Try again.':kind==='unauthorized'?'Your session has expired. Please sign in again.':kind==='service_unavailable'?'Lead Log is temporarily unavailable. Try again.':'Something went wrong. Try again.';
-function mapStatus(status:number,code?:string):SafeApiError['kind']{if(status===401)return'unauthorized';if(status===400||code==='validation_error')return'validation_error';if(status===409)return'conflict';if(status===429)return'rate_limited';if(status===503)return'service_unavailable';if(status===404)return'not_found';return status>=500?'service_unavailable':'unexpected_error';}
+function mapStatus(status:number,code?:string):SafeApiError['kind']{if(status===401)return'unauthorized';if(status===400||code==='validation_error')return'validation_error';if(status===409)return'conflict';if(status===429)return'rate_limited';if(status===503||status===502||status===504)return'service_unavailable';if(status===404)return'not_found';return status>=500?'service_unavailable':'unexpected_error';}
 export async function apiRequest<T>(path:string,options:Options={}):Promise<T>{
  const headers:Record<string,string>={...(options.headers??{})};
  const init:RequestInit={method:options.method??'GET',credentials:'include',headers,signal:options.signal};
