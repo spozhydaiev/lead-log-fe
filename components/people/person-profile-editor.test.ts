@@ -1,0 +1,12 @@
+import { describe,it,expect } from 'vitest';
+import { personProfileEditorInternals } from './person-profile-editor';
+import type { PersonProfile } from '@/lib/api/types';
+const profile:PersonProfile={id:'person_1',display_name:'Adlet',aliases:['AK'],first_mentioned_at:'2026-03-12T10:00:00Z',last_mentioned_at:'2026-07-18T13:42:00Z',mention_count:14,updated_at:'2026-07-18T13:43:00Z',first_name:'Adlet',last_name:null,job_title:'Manager',team:null,company:null,notes:'Note'};
+const form={display_name:'Adlet',first_name:'Adlet',last_name:'',job_title:'Manager',team:'',company:'',notes:'Note',aliases:['AK']};
+describe('person profile editor payload contract',()=>{
+ it('omits unchanged editable fields while retaining the concurrency token when available',()=>{const payload=personProfileEditorInternals.buildPayload(profile,form);expect(payload).toEqual({expected_updated_at:'2026-07-18T13:43:00Z'});expect(personProfileEditorInternals.hasEditableChanges(payload)).toBe(false);});
+ it('uses null for explicit nullable field clearing and omits unchanged aliases',()=>{expect(personProfileEditorInternals.buildPayload(profile,{...form,first_name:''})).toEqual({expected_updated_at:'2026-07-18T13:43:00Z',first_name:null});});
+ it('distinguishes omitted, empty, and populated aliases',()=>{expect(personProfileEditorInternals.buildPayload(profile,form)).not.toHaveProperty('aliases');expect(personProfileEditorInternals.buildPayload(profile,{...form,aliases:[]})).toMatchObject({aliases:[]});expect(personProfileEditorInternals.buildPayload(profile,{...form,aliases:['AK','Adlet K.']})).toMatchObject({aliases:['AK','Adlet K.']});});
+ it('allows a changed payload without expected_updated_at when the profile lacks that optional response field',()=>{const {updated_at,...withoutToken}=profile;const payload=personProfileEditorInternals.buildPayload(withoutToken,{...form,display_name:'Adlet Updated'});expect(payload).toEqual({display_name:'Adlet Updated'});expect(personProfileEditorInternals.hasEditableChanges(payload)).toBe(true);});
+ it('matches OpenAPI validation ceilings',()=>{expect(personProfileEditorInternals.validate({...form,display_name:'x'.repeat(201)}).display_name).toContain('200');expect(personProfileEditorInternals.validate({...form,notes:'x'.repeat(10001)}).notes).toContain('10000');expect(personProfileEditorInternals.validate({...form,aliases:Array.from({length:26},(_,i)=>`a${i}`)}).aliases).toContain('25');expect(personProfileEditorInternals.validate({...form,aliases:['x'.repeat(201)]}).aliases).toContain('200');});
+});
