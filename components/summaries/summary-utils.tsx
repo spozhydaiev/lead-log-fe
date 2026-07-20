@@ -1,14 +1,13 @@
 import Link from 'next/link';
 import { formatDateTime } from '@/lib/formatting/date';
 import type { SummaryItem,SummarySource,SummaryType } from '@/lib/api/types';
-import { clamp,normalizeSummaryContent,summaryPreview,type NormalizedSummaryContent,type SummaryEntry } from './summary-normalization';
+import { clamp,dateLabelSafe,normalizeSummaryContent,summaryPreview,type NormalizedSummary,type NormalizedSummaryContent,type SummaryEntry } from './summary-normalization';
 export const types:SummaryType[]=['daily','weekly'];export const dateRe=/^\d{4}-\d{2}-\d{2}$/;export const LIMIT=20;
 export const cap=clamp;
 export function labelType(t:SummaryType|string){return t==='weekly'?'Weekly':'Daily'}
-function dateLabel(d:string){const [y,m,day]=d.split('-').map(Number);return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,day)))}
-export function periodLabel(p:{from:string;to:string}){return p.from===p.to?dateLabel(p.from):`${dateLabel(p.from)}–${dateLabel(p.to)}`}
+export function periodLabel(p:{from:string;to:string}|null|undefined){if(!p)return 'Summary period unavailable';const from=dateLabelSafe(p.from),to=dateLabelSafe(p.to);if(!from||!to)return 'Summary period unavailable';return p.from===p.to?from:`${from}–${to}`}
 export function freshness(s:boolean|null|undefined){return s===true?'Source notes changed':s===false?'Current':'Freshness unknown'}
-export function StatusFresh({summary}:{summary:SummaryItem}){return <p className="summary-meta"><span className="chip">Status: {summary.status==='ready'?'Ready':summary.status}</span> <span className="chip">{freshness(summary.source_changed)}</span></p>}
+export function StatusFresh({summary}:{summary:Pick<SummaryItem,'status'|'source_changed'>|Pick<NormalizedSummary,'status'|'source_changed'>}){return <p className="summary-meta"><span className="chip">Status: {summary.status==='ready'?'Ready':summary.status}</span> <span className="chip">{freshness(summary.source_changed)}</span></p>}
 export function SummaryCard({summary}:{summary:SummaryItem}){return <Link className="card summary-card" href={`/summaries/${encodeURIComponent(summary.id)}`}><div className="action-row"><div><p className="chip">{labelType(summary.type)} summary</p><h2>{summary.title||`${labelType(summary.type)} summary`}</h2></div></div><p className="summary-period">{periodLabel(summary.period)}</p><p className="muted summary-preview">{summaryPreview(summary)}</p><p className="muted">Generated {formatDateTime(summary.generated_at??null)}</p><StatusFresh summary={summary}/>{summary.source_changed&&<p className="error">Source notes changed. Open to review or regenerate.</p>}</Link>}
 function href(it:SummaryEntry){if(it.personId)return `/people/${encodeURIComponent(it.personId)}`;if(it.ticketKey)return `/tickets/${encodeURIComponent(it.ticketKey)}`;return undefined}
 function Section({title,items}:{title:string;items:SummaryEntry[]}){if(!items.length)return null;return <section className="summary-section"><h2>{title}</h2><ul>{items.map(it=>{const h=href(it);return <li key={it.key}>{h?<Link href={h}>{it.primaryText}</Link>:it.primaryText}{it.secondaryText&&<p className="muted">{it.secondaryText}</p>}{it.sourceNoteIds.length>0&&<p className="muted">Sources: {it.sourceNoteIds.map(id=><span className="chip" key={id}>{id}</span>)}</p>}</li>})}</ul></section>}
