@@ -19,9 +19,13 @@ Copy `.env.example` to `.env.local`:
 
 ```bash
 BACKEND_API_BASE_URL=http://localhost:8080
+FRONTEND_ORIGIN=http://localhost:3000
+BFF_DEFAULT_TIMEOUT=15s
+BFF_ASK_TIMEOUT=60s
+BFF_SUMMARY_GENERATION_TIMEOUT=105s
 ```
 
-This server-only backend origin is read by Next.js route handlers. Do not expose backend URLs or secrets through `NEXT_PUBLIC_*` variables.
+These values are server-only and are read by Next.js route handlers. The BFF proxy uses the default timeout for ordinary API requests, the Ask timeout for exact `POST /api/v1/ask`, and the longer summary-generation timeout for exact `POST /api/v1/summaries/generate`. Durations must be positive and may use `ms`, `s`, or `m` suffixes. If `BACKEND_SUMMARY_GENERATION_TIMEOUT` is configured locally, `BFF_SUMMARY_GENERATION_TIMEOUT` must be longer. Do not expose backend URLs, timeout settings, or secrets through `NEXT_PUBLIC_*` variables.
 
 ## Commands
 
@@ -48,7 +52,12 @@ Frontend service:
 
 - Build command: `npm ci && npm run build`
 - Start command: `npm start`
-- Environment: `BACKEND_API_BASE_URL=https://lead-log-production.up.railway.app`
+- Environment:
+  - `BACKEND_API_BASE_URL=https://lead-log-production.up.railway.app`
+  - `FRONTEND_ORIGIN=https://lead-log-fe-production.up.railway.app`
+  - `BFF_DEFAULT_TIMEOUT=15s`
+  - `BFF_ASK_TIMEOUT=60s`
+  - `BFF_SUMMARY_GENERATION_TIMEOUT=105s`
 
 Backend service must allow the exact frontend origin, for example:
 
