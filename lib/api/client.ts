@@ -12,7 +12,7 @@ export async function apiRequest<T>(path:string,options:Options={}):Promise<T>{
  let res:Response;try{res=await fetch(`${getApiBaseUrl()}${path}`,init)}catch{throw new ApiRequestError({kind:'network_error',message:safeMessage('network_error')})}
  if(res.status===204)return undefined as T;
  let parsed:unknown=null;try{parsed=await res.json()}catch{parsed=null}
- if(!res.ok){const obj=parsed&&typeof parsed==='object'?parsed as {error?:{code?:string;message?:string}}:{};const kind=mapStatus(res.status,obj.error?.code);throw new ApiRequestError({kind,status:res.status,message:safeMessage(kind)})}
+ if(!res.ok){const obj=parsed&&typeof parsed==='object'?parsed as {error?:{code?:string;message?:string;fields?:Record<string,string>}}:{};const kind=mapStatus(res.status,obj.error?.code);throw new ApiRequestError({kind,status:res.status,message:safeMessage(kind),fields:obj.error?.fields})}
  if(options.unwrapData!==false&&parsed&&typeof parsed==='object'&&'data' in parsed)return (parsed as {data:T}).data;
  return parsed as T;
 }
