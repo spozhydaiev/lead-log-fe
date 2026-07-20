@@ -1,4 +1,13 @@
-import type { SummaryContent,SummaryItem,SummaryType } from '@/lib/api/types';
+import type { SummaryContent,SummaryItem,SummarySource,SummaryType } from '@/lib/api/types';
+
+
+export type NormalizedSummaryPeriod={from:string;to:string};
+export type NormalizedSummary={id:string;type:SummaryType;status:string;period:NormalizedSummaryPeriod|null;generated_at?:string|null;title?:string|null;preview?:string|null;source_changed?:boolean|null;content:SummaryContent;sources:SummarySource[];malformed?:boolean};
+function obj(v:unknown):v is Record<string,unknown>{return !!v&&typeof v==='object'&&!Array.isArray(v)}
+export function isValidCalendarDate(value:unknown):value is string{return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&dateLabelSafe(value)!==null}
+export function isValidCalendarDateRange(value:unknown):value is NormalizedSummaryPeriod{return obj(value)&&isValidCalendarDate(value.from)&&isValidCalendarDate(value.to)}
+export function dateLabelSafe(d:string){if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return null;const [y,m,day]=d.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1,day));if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==day)return null;return new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(dt)}
+export function normalizeSummary(apiSummary:unknown):NormalizedSummary|null{if(!obj(apiSummary))return null;const type=apiSummary.type==='weekly'?'weekly':apiSummary.type==='daily'?'daily':null;if(!type||typeof apiSummary.id!=='string')return null;const period=isValidCalendarDateRange(apiSummary.period)?{from:apiSummary.period.from,to:apiSummary.period.to}:null;const content=obj(apiSummary.content)?apiSummary.content as SummaryContent:{};const rawSources=Array.isArray(apiSummary.sources)?apiSummary.sources:[];const sources=rawSources.filter(obj).filter(s=>typeof s.id==='string').map(s=>({type:s.type==='note'?'note':'note',id:String(s.id),occurred_at:typeof s.occurred_at==='string'?s.occurred_at:'',label:typeof s.label==='string'?s.label:'Source note',excerpt:typeof s.excerpt==='string'?s.excerpt:''} satisfies SummarySource));return{id:apiSummary.id,type,status:typeof apiSummary.status==='string'?apiSummary.status:'ready',period,title:typeof apiSummary.title==='string'?apiSummary.title:null,preview:typeof apiSummary.preview==='string'?apiSummary.preview:null,generated_at:typeof apiSummary.generated_at==='string'?apiSummary.generated_at:null,source_changed:typeof apiSummary.source_changed==='boolean'?apiSummary.source_changed:null,content,sources,malformed:!period};}
 
 export type SummaryListItem={key:string;primaryText:string;secondaryText?:string;sourceNoteIds:string[];personId?:string;ticketKey?:string;actionId?:string};
 export type SummaryEntry=SummaryListItem;
